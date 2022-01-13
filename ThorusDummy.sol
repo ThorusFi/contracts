@@ -924,12 +924,13 @@ contract ThorusDummy is Ownable, Mintable {
         return thorusMasterBalanceOf;
     }
 
-    function transfer(address _to, uint256 _amount) external onlyMinter {
+    function transfer(address _to, uint256 _amount) external onlyMinter returns (bool) {
         require(thorusMasterBalanceOf >= _amount, "not enough tokens minted");
         thorus.safeTransfer(_to, _amount);
         thorusMasterBalanceOf -= _amount;
 
         emit Transfer(_to, _amount);
+        return true;
     }
 
     function mint(address, uint256 _amount) external onlyMinter {

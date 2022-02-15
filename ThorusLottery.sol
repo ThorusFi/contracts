@@ -572,7 +572,6 @@ contract ThorusLottery is Ownable, ReentrancyGuard {
     event ClaimingStarted();
     event Buy(uint256 amount, address indexed user);
     event Claim(uint256 amount, address indexed user);
-    event ThorusWithdrawn(uint256 amount);
 
     struct Ticket {
         address owner;
@@ -633,6 +632,7 @@ contract ThorusLottery is Ownable, ReentrancyGuard {
         require(!buyingAllowed, "buying still allowed");
         require(!claimingAllowed, "claiming already allowed");
         require(dai.balanceOf(address(this)) >= _rewardOffered, "transfer needed funds first!");
+        require(_rewardOffered > rewardOffered, "new reward lower");
 
         rewardOffered = _rewardOffered;
         emit RewardSet();
@@ -642,6 +642,9 @@ contract ThorusLottery is Ownable, ReentrancyGuard {
         require(!claimingAllowed, "claiming already allowed");
         require(ticketsWithdrawn, "tickets not yet withdrawn");
         require(rewardOffered > 0, "reward not yet set");
+        uint256 excessAmount = dai.balanceOf(address(this)) - rewardOffered;
+        if(excessAmount > 0)
+            dai.safeTransfer(treasury, excessAmount);
 
         claimingAllowed = true;
         emit ClaimingStarted();
@@ -655,7 +658,7 @@ contract ThorusLottery is Ownable, ReentrancyGuard {
         require(buyingAllowed, "buying not allowed");
         require(amount <= 100, "exceed maximum limit");
 
-        thorus.safeTransferFrom(msg.sender, address(this), amount * ticketPrice);
+        thorus.safeTransferFrom(msg.sender, treasury, amount * ticketPrice);
         for(uint256 i=0; i<amount; i++) {
             tickets.push(
                 Ticket({
@@ -752,6 +755,52 @@ contract ThorusLottery is Ownable, ReentrancyGuard {
         return count;
     }
 
+    function getFirstWinning() public view returns (address) {
+        if(!ticketsWithdrawn)
+            return address(0);
+        for(uint256 i=0; i<tickets.length; i++) {
+            if(isFirstWinning(i))
+                return tickets[i].owner;
+        }
+        return address(0);
+    }
+
+    function getSecondWinning() public view returns (address) {
+        if(!ticketsWithdrawn)
+            return address(0);
+        for(uint256 i=0; i<tickets.length; i++) {
+            if(isSecondWinning(i))
+                return tickets[i].owner;
+        }
+        return address(0);
+    }
+
+    function getThirdWinning() public view returns (address) {
+        if(!ticketsWithdrawn)
+            return address(0);
+        for(uint256 i=0; i<tickets.length; i++) {
+            if(isThirdWinning(i))
+                return tickets[i].owner;
+        }
+        return address(0);
+    }
+
+    function getWinning() public view returns (address[] memory) {
+        address[] memory result = new address[](winningCount-3);
+        if(!ticketsWithdrawn)
+            return result;
+        uint256 j = 0;
+        for(uint256 i=0; i<tickets.length; i++) {
+            if(isWinning(i) && !isFirstWinning(i) && !isSecondWinning(i) && !isThirdWinning(i)) {
+                result[j] = tickets[i].owner;
+                j++;
+            }
+
+        }
+
+        return result;
+    }
+
     function claimTickets(uint256[] calldata ticketIndexes) external nonReentrant {
         require(claimingAllowed, "claiming not allowed");
         uint256 reward = 0;
@@ -797,12 +846,5 @@ contract ThorusLottery is Ownable, ReentrancyGuard {
         }
         dai.safeTransfer(msg.sender, reward);
         emit Claim(reward, msg.sender);
-    }
-
-    function withdrawThorus() external onlyOwner {
-        require(!buyingAllowed, "buying still allowed");
-
-        thorus.safeTransfer(treasury, thorus.balanceOf(address(this)));
-        emit ThorusWithdrawn(thorus.balanceOf(address(this)));
     }
 }

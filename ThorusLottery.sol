@@ -696,7 +696,7 @@ contract ThorusLottery is Ownable, ReentrancyGuard {
         emit SettleRandomResult();
     }
 
-    function withdrawWinningTickets() external {
+    function withdrawWinningTickets() external onlyOwner {
         require(block.number > settlementBlockNumber , "settlementBlockNumber block is not arrived yet");
         require(block.number - settlementBlockNumber < 256, "settlementBlockNumber block is expired");
         firstWinningNumber =  uint256(blockhash(settlementBlockNumber)) % tickets.length;
@@ -744,6 +744,10 @@ contract ThorusLottery is Ownable, ReentrancyGuard {
             if(isWinning(ticketIndex)) count++;
         }
         return count;
+    }
+
+    function ownerTicketsCount(address owner) public view returns (uint256) {
+        return ownedTickets[owner].length;
     }
 
     function ownerClaimableTicketsCount(address owner) public view returns (uint256) {

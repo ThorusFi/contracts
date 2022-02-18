@@ -851,11 +851,4 @@ contract ThorusLottery is Ownable, ReentrancyGuard {
         dai.safeTransfer(msg.sender, reward);
         emit Claim(reward, msg.sender);
     }
-
-    function withdrawStuckDai() external onlyOwner {
-        //only when lottery is stuck due to expired settlementBlockNumber
-        if(settlementBlockNumber > 0 && block.number - settlementBlockNumber > 256 && !ticketsWithdrawn) {
-            dai.safeTransfer(treasury, dai.balanceOf(address(this)));
-        }
-    }
 }
